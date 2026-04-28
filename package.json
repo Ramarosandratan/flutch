@@ -8,7 +8,8 @@
   },
   "scripts": {
     "start": "node server.js",
-    "test": "jest"
+    "test": "jest",
+    "worker:webhooks": "node services/webhookQueueWorker.js"
   },
   "dependencies": {
     "@replit/connectors-sdk": "^0.4.0",
@@ -24,6 +25,7 @@
     "sanitize-html": "^2.17.3",
     "winston": "^3.19.0",
     "winston-daily-rotate-file": "^5.0.0",
+    "prom-client": "^14.0.1",
     "zod": "^4.3.6"
   },
   "devDependencies": {

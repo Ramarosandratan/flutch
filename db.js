@@ -1,3 +1,4 @@
+require('dotenv').config();
 const { Pool } = require('pg');
 const crypto = require('crypto');
 
@@ -48,12 +49,31 @@ function buildSslConfig() {
   return { rejectUnauthorized: false };
 }
 
-const pool = new Pool({
-  connectionString: process.env.DATABASE_URL,
+/**
+ * Build PostgreSQL pool configuration with defensive type coercion.
+ * Ensures connectionString and password are strings to prevent SASL authentication errors
+ * when environment injection tools (e.g., dotenvx) supply non-string values.
+ */
+const poolConfig = {
+  connectionString: process.env.DATABASE_URL ? String(process.env.DATABASE_URL) : undefined,
   ssl: buildSslConfig(),
   max: 20,
   idleTimeoutMillis: 30000,
-});
+};
+
+// Extract password from URL and coerce to string for robustness.
+if (process.env.DATABASE_URL) {
+  try {
+    const parsed = new URL(String(process.env.DATABASE_URL));
+    if (parsed.password !== undefined && parsed.password !== null) {
+      poolConfig.password = String(parsed.password);
+    }
+  } catch (_) {
+    // Silently ignore parse errors; pg.Pool will handle connectionString as-is.
+  }
+}
+
+const pool = new Pool(poolConfig);
 
 async function initSchema() {
   await pool.query(`
@@ -194,6 +214,19 @@ async function initSchema() {
   `);
 
   const migrations = [
+    `CREATE TABLE IF NOT EXISTS webhook_events (
+      id SERIAL PRIMARY KEY,
+      event_type TEXT,
+      deal_id INTEGER,
+      dedup_key TEXT UNIQUE,
+      payload JSONB,
+      status TEXT DEFAULT 'pending',
+      attempts INTEGER DEFAULT 0,
+      next_retry_at TIMESTAMP,
+      last_error TEXT,
+      created_at TIMESTAMP DEFAULT NOW(),
+      processed_at TIMESTAMP
+    );`,
     'ALTER TABLE biens ADD COLUMN IF NOT EXISTS taxe_fonciere DOUBLE PRECISION',
     'ALTER TABLE biens ADD COLUMN IF NOT EXISTS charge_annuelle DOUBLE PRECISION',
     'ALTER TABLE biens ADD COLUMN IF NOT EXISTS loyer_net_bailleur DOUBLE PRECISION',

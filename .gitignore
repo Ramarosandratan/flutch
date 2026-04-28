@@ -5,6 +5,7 @@
 .env.local
 .env.*.local
 .env.production.local
+info.md
 *.pem
 *.key
 
