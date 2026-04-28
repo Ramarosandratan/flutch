@@ -206,7 +206,9 @@ async function sendBrevoCustomEmail(acq, biens, opts) {
       <p style="color:#666;font-size:13px;">${escapeHtml(ownerEmail)}</p>
     </body></html>`;
 
-  const bcc = `leboutiquier+deal${acq.pipedrive_deal_id}@pipedriveemail.com`;
+  // FIX — Handle null pipedrive_deal_id (seed data may not have it)
+  const dealId = acq.pipedrive_deal_id ? String(acq.pipedrive_deal_id) : 'unknown';
+  const bcc = `leboutiquier+deal${dealId}@pipedriveemail.com`;
 
   return withRetry(async () => {
     const response = await fetch(`${BREVO_API}/smtp/email`, {

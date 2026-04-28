@@ -135,7 +135,13 @@ router.post('/email-send-custom', requireAuth, asyncHandler(async (req, res) => 
   const { rows: biens } = await pool.query(`SELECT * FROM biens WHERE id IN (${placeholders})`, bien_ids);
   if (!biens.length) return res.status(404).json({ error: 'Aucun bien trouvé' });
 
-  const brevoResult = await sendBrevoCustomEmail(acq, biens, { subject, intro, outro, bienHtml });
+  let brevoResult;
+  try {
+    brevoResult = await sendBrevoCustomEmail(acq, biens, { subject, intro, outro, bienHtml });
+  } catch (brevoErr) {
+    logger.error(`❌ Brevo custom email failed: ${brevoErr.message}`, { acquereur_id, bien_ids, error: brevoErr.stack });
+    return res.status(500).json({ error: `Erreur lors de l'envoi email: ${brevoErr.message}` });
+  }
   const msgId = brevoResult?.messageId || null;
 
   const userId = getAuthUserId(req);
