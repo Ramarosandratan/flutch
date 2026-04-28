@@ -32,7 +32,8 @@ const SANITIZE_OPTIONS = {
   disallowedTagsMode: 'discard',
 };
 
-const BREVO_API = 'https://api.brevo.com/v3';
+// Allow overriding Brevo API base URL for local testing via env var `BREVO_API_URL`.
+const BREVO_API = process.env.BREVO_API_URL || 'https://api.brevo.com/v3';
 
 class BrevoConfigError extends Error {
   constructor() {

@@ -10,6 +10,7 @@
     "start": "node server.js",
     "test": "jest",
     "worker:webhooks": "node services/webhookQueueWorker.js",
+    "worker:agent": "node services/agent-worker.js",
     "seed:e2e": "node scripts/seed-global-test-data.js"
   },
   "dependencies": {
