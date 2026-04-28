@@ -19,6 +19,7 @@ async function pushCriteriaToP(acquereurId, apiToken) {
     budget_min: '4f22c33e84cb1e27c3f43e5c6113a3075b27a732',
     budget_max: '77536372ffdd85fad871278ffa82b56877cc8347',
     rentabilite_min: '0e23eafbe69625f6a4d8a8c56d07755a28dddaf1',
+    dpe_min: null,
     occupation: 'ff88b708d9d16f9729825144ab907171364ef744',
     secteurs: '128fa9e5c711bd57384dccff920fb4b2fff28f8a',
     apport: 'cb21e7d0444ab342f723ab1061f247911a35bd06',
@@ -29,6 +30,7 @@ async function pushCriteriaToP(acquereurId, apiToken) {
   if (crit.budget_min) body[PUSH_KEYS.budget_min] = crit.budget_min;
   if (crit.budget_max) body[PUSH_KEYS.budget_max] = crit.budget_max;
   if (crit.rentabilite_min) body[PUSH_KEYS.rentabilite_min] = crit.rentabilite_min;
+  if (crit.dpe_min && PUSH_KEYS.dpe_min) body[PUSH_KEYS.dpe_min] = String(crit.dpe_min).toUpperCase();
   if (crit.occupation_ids) {
     const ids = JSON.parse(crit.occupation_ids);
     body[PUSH_KEYS.occupation] = ids.join(',');

@@ -10,6 +10,17 @@ const optionalNonNegativeNumber = z
   .transform((v) => (v === '' || v == null ? null : Number(v)))
   .nullable();
 
+const optionalDpeLetter = z
+  .union([z.literal(''), z.null(), z.undefined(), z.string()])
+  .transform((v) => {
+    if (v === '' || v == null) return null;
+    const dpe = String(v).trim().toUpperCase();
+    return dpe;
+  })
+  .refine((v) => v === null || /^[A-G]$/.test(v), {
+    message: 'dpe_min doit être une lettre entre A et G',
+  });
+
 const createUserSchema = z.object({
   name: z.string().trim().min(1, 'Nom requis'),
   email,
@@ -52,6 +63,7 @@ const updateAcquereurCriteriaSchema = z
     budget_min: optionalNonNegativeNumber,
     budget_max: optionalNonNegativeNumber,
     rentabilite_min: optionalNonNegativeNumber,
+    dpe_min: optionalDpeLetter,
     occupation_status: z.union([z.array(z.string()), z.null()]).optional(),
     secteurs: z.union([z.string(), z.array(z.string()), z.null()]).optional(),
   })

@@ -105,6 +105,7 @@ async function initSchema() {
       rentabilite         DOUBLE PRECISION,
       rentabilite_post_rev DOUBLE PRECISION,
       occupation_status   TEXT,
+      dpe                 TEXT,
       occupation_id       TEXT,
       mandat_id           INTEGER,
       surface             DOUBLE PRECISION,
@@ -159,6 +160,7 @@ async function initSchema() {
       budget_min          DOUBLE PRECISION,
       budget_max          DOUBLE PRECISION,
       rentabilite_min     DOUBLE PRECISION,
+      dpe_min             TEXT,
       occupation_status   TEXT,
       occupation_ids      TEXT,
       secteurs            TEXT,
@@ -245,6 +247,8 @@ async function initSchema() {
     "ALTER TABLE email_queue ADD COLUMN IF NOT EXISTS channel TEXT DEFAULT 'email'",
     "ALTER TABLE email_queue ADD COLUMN IF NOT EXISTS brevo_message_id TEXT",
     "ALTER TABLE biens ADD COLUMN IF NOT EXISTS lien_drive TEXT",
+    'ALTER TABLE biens ADD COLUMN IF NOT EXISTS dpe TEXT',
+    'ALTER TABLE acquereur_criteria ADD COLUMN IF NOT EXISTS dpe_min TEXT',
     'ALTER TABLE acquereurs ADD COLUMN IF NOT EXISTS pipedrive_stage_id INTEGER',
   ];
   for (const sql of migrations) {
@@ -396,6 +400,14 @@ async function log(userId, action, entityType, entityId, details) {
   );
 }
 
+const DPE_ORDER = { A: 1, B: 2, C: 3, D: 4, E: 5, F: 6, G: 7 };
+
+function normalizeDpe(value) {
+  if (!value) return null;
+  const dpe = String(value).trim().toUpperCase();
+  return DPE_ORDER[dpe] ? dpe : null;
+}
+
 async function matchAcquereurToBiens(acquereurId, hideelegation = true) {
   const { rows: critRows } = await pool.query('SELECT * FROM acquereur_criteria WHERE acquereur_id = $1', [acquereurId]);
   const criteria = critRows[0] || null;
@@ -416,6 +428,17 @@ async function matchAcquereurToBiens(acquereurId, hideelegation = true) {
     if (criteria.rentabilite_min && criteria.rentabilite_min > 0) {
       criteriaConditions.push(`COALESCE(b.rentabilite_post_rev, b.rentabilite_actuelle, b.rentabilite) >= $${paramIdx++}`);
       criteriaParams.push(criteria.rentabilite_min);
+    }
+    const criteriaDpeMin = normalizeDpe(criteria.dpe_min);
+    if (criteriaDpeMin) {
+      criteriaConditions.push(`
+        (CASE UPPER(COALESCE(b.dpe, ''))
+          WHEN 'A' THEN 1 WHEN 'B' THEN 2 WHEN 'C' THEN 3 WHEN 'D' THEN 4
+          WHEN 'E' THEN 5 WHEN 'F' THEN 6 WHEN 'G' THEN 7
+          ELSE NULL
+        END) <= $${paramIdx++}
+      `);
+      criteriaParams.push(DPE_ORDER[criteriaDpeMin]);
     }
     if (criteria.occupation_ids) {
       try {
@@ -474,7 +497,7 @@ async function matchBienToAcquereurs(bienId, ownerEmail = null) {
 
   let fullQuery = `
     SELECT a.*,
-           c.budget_min, c.budget_max, c.rentabilite_min,
+           c.budget_min, c.budget_max, c.rentabilite_min, c.dpe_min,
            c.occupation_status as crit_occ, c.occupation_ids as crit_occ_ids,
            c.secteurs,
            t.id as todo_id,
@@ -494,6 +517,7 @@ async function matchBienToAcquereurs(bienId, ownerEmail = null) {
   const { rows: acquereurs } = await pool.query(fullQuery, fullParams);
 
   const bienRenta = bien.rentabilite_post_rev || bien.rentabilite;
+  const bienDpeRank = DPE_ORDER[normalizeDpe(bien.dpe)] || null;
 
   return acquereurs.filter(a => {
     try {
@@ -501,6 +525,11 @@ async function matchBienToAcquereurs(bienId, ownerEmail = null) {
       if (a.budget_min && a.budget_min > 0 && bien.prix_fai < a.budget_min) return false;
       if (a.budget_max && a.budget_max > 0 && bien.prix_fai > a.budget_max) return false;
       if (a.rentabilite_min && a.rentabilite_min > 0 && bienRenta && bienRenta < a.rentabilite_min) return false;
+      const acqDpeRank = DPE_ORDER[normalizeDpe(a.dpe_min)] || null;
+      if (acqDpeRank) {
+        if (!bienDpeRank) return false;
+        if (bienDpeRank > acqDpeRank) return false;
+      }
       if (a.crit_occ_ids) {
         const ids = JSON.parse(a.crit_occ_ids).map(String);
         if (ids.length > 0 && !ids.includes(String(bien.occupation_id))) return false;

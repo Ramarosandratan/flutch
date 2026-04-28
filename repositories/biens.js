@@ -36,7 +36,7 @@ class BiensRepository {
     const like = `%${query}%`;
     const { rows } = await this.pool.query(`
       SELECT id, pipedrive_deal_id, titre, adresse, code_postal, ville,
-             prix_fai, rentabilite, rentabilite_post_rev, occupation_status,
+              prix_fai, rentabilite, rentabilite_post_rev, occupation_status, dpe,
              surface, is_delegation, owner_name, photo_1, photo_2, photo_3,
              pipedrive_updated_at, pipedrive_created_at
       FROM biens WHERE archived = 0
@@ -52,7 +52,7 @@ class BiensRepository {
       : 'COALESCE(pipedrive_updated_at, pipedrive_created_at, synced_at)';
     const { rows } = await this.pool.query(`
       SELECT id, pipedrive_deal_id, titre, code_postal, ville, prix_fai, occupation_status,
-             rentabilite_post_rev, pipedrive_updated_at, pipedrive_created_at, owner_name
+              dpe, rentabilite_post_rev, pipedrive_updated_at, pipedrive_created_at, owner_name
       FROM biens WHERE archived = 0
       ORDER BY ${orderCol} DESC LIMIT $1
     `, [limit]);

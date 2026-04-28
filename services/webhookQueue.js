@@ -85,11 +85,11 @@ async function processBatch(limit = 20) {
           } else if (isBienStage) {
             await syncSingleBien(payload, process.env.PIPEDRIVE_API_TOKEN);
           } else if (isAcqStage) {
-            await syncSingleAcquereur(payload);
+            await syncSingleAcquereur(payload, process.env.PIPEDRIVE_API_TOKEN);
           } else {
             // Fallback: try to sync both (best-effort)
             try { await syncSingleBien(payload, process.env.PIPEDRIVE_API_TOKEN); } catch(_) {}
-            try { await syncSingleAcquereur(payload); } catch(_) {}
+            try { await syncSingleAcquereur(payload, process.env.PIPEDRIVE_API_TOKEN); } catch(_) {}
           }
 
           await lockClient.query('COMMIT');

@@ -8,6 +8,8 @@
 const { logger } = require('../lib/logger');
 const { pool } = require('../db');
 const {
+  getDealFieldsMap,
+  norm,
   getBienKeys,
   OCC_LABELS,
   ACQ_KEYS,
@@ -18,6 +20,12 @@ const {
   resolveSet,
   resolveEnum,
 } = require('./fieldMapping');
+
+function normalizeDpe(value) {
+  if (!value) return null;
+  const dpe = String(value).trim().toUpperCase();
+  return ['A', 'B', 'C', 'D', 'E', 'F', 'G'].includes(dpe) ? dpe : null;
+}
 
 async function syncSingleBien(deal, apiToken) {
   const KEYS = await getBienKeys(apiToken);
@@ -38,6 +46,7 @@ async function syncSingleBien(deal, apiToken) {
   const photo1 = g(KEYS.photo_couverture) || g(KEYS.photo_1);
   const photo2 = g(KEYS.photo_2_real) || g(KEYS.photo_2);
   const photo3 = g(KEYS.photo_3_real) || g(KEYS.photo_3);
+  const bienDpe = normalizeDpe(g(KEYS.dpe));
 
   const { rows: existing } = await pool.query('SELECT pipedrive_updated_at FROM biens WHERE pipedrive_deal_id = $1', [deal.id]);
   if (existing[0] && existing[0].pipedrive_updated_at && deal.update_time && deal.update_time < existing[0].pipedrive_updated_at) {
@@ -55,9 +64,9 @@ async function syncSingleBien(deal, apiToken) {
       taxe_fonciere, charge_annuelle, loyer_net_bailleur, prise_effet_bail,
       loyer_post_revision, assujettissement_tva, modalite_augmentation,
       point_vigilance, points_positifs, surface_rdc, surface_etage, surface_sous_sol,
-      surface_ponderee, imputation_taxe_fonciere, rentabilite_actuelle, lien_drive)
+      surface_ponderee, imputation_taxe_fonciere, rentabilite_actuelle, lien_drive, dpe)
     VALUES ($1,$2,$3,$4,$5,$6,NULL,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25,$26,$27,$28,$29,$30,$31,$32,$33,NOW(),0,
-      $34,$35,$36,$37,$38,$39,$40,$41,$42,$43,$44,$45,$46,$47,$48,$49)
+      $34,$35,$36,$37,$38,$39,$40,$41,$42,$43,$44,$45,$46,$47,$48,$49,$50)
     ON CONFLICT(pipedrive_deal_id) DO UPDATE SET
       titre=EXCLUDED.titre, adresse=EXCLUDED.adresse, code_postal=EXCLUDED.code_postal,
       ville=EXCLUDED.ville, prix_fai=EXCLUDED.prix_fai,
@@ -80,6 +89,7 @@ async function syncSingleBien(deal, apiToken) {
       surface_etage=EXCLUDED.surface_etage, surface_sous_sol=EXCLUDED.surface_sous_sol,
       surface_ponderee=EXCLUDED.surface_ponderee, imputation_taxe_fonciere=EXCLUDED.imputation_taxe_fonciere,
       rentabilite_actuelle=EXCLUDED.rentabilite_actuelle, lien_drive=EXCLUDED.lien_drive,
+      dpe=EXCLUDED.dpe,
       synced_at=NOW(), archived=0
   `, [
     deal.id, deal.title || '', g(KEYS.adresse) || deal.title, cp, g(KEYS.ville),
@@ -105,13 +115,23 @@ async function syncSingleBien(deal, apiToken) {
     resolveSet(g(KEYS.imputation_taxe_fonciere), IMPUT_TF_LABELS),
     toFloat(g(KEYS.rentabilite_actuelle)),
     g(KEYS.lien_drive) || null,
+    bienDpe,
   ]);
   logger.info(`⚡ Webhook: bien #${deal.id} "${deal.title}" sync OK`);
 }
 
-async function syncSingleAcquereur(deal) {
+async function syncSingleAcquereur(deal, apiToken) {
   const g = (key) => key ? deal[key] : null;
   const toFloat = (v) => v ? parseFloat(String(v).replace(/[^0-9.]/g, '')) || null : null;
+  let acqDpeKey = ACQ_KEYS.dpe_min;
+  if (!acqDpeKey && apiToken) {
+    const fieldMap = await getDealFieldsMap(apiToken);
+    const findKey = (name) => Object.entries(fieldMap).find(([, v]) => norm(v) === norm(name))?.[0];
+    acqDpeKey = findKey('DPE minimum')
+      || findKey('DPE min')
+      || findKey('Classe DPE minimum')
+      || findKey('Classe DPE');
+  }
 
   const { rows: existing } = await pool.query('SELECT pipedrive_updated_at FROM acquereurs WHERE pipedrive_deal_id = $1', [deal.id]);
   if (existing[0] && existing[0].pipedrive_updated_at && deal.update_time && deal.update_time < existing[0].pipedrive_updated_at) {
@@ -161,18 +181,19 @@ async function syncSingleAcquereur(deal) {
 
     await pool.query(`
       INSERT INTO acquereur_criteria (acquereur_id, budget_min, budget_max, rentabilite_min,
-        occupation_status, occupation_ids, secteurs, apport, condition_pret, updated_at)
-      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,NOW())
+        dpe_min, occupation_status, occupation_ids, secteurs, apport, condition_pret, updated_at)
+      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,NOW())
       ON CONFLICT(acquereur_id) DO UPDATE SET
         budget_min=EXCLUDED.budget_min, budget_max=EXCLUDED.budget_max,
         rentabilite_min=EXCLUDED.rentabilite_min,
+        dpe_min=EXCLUDED.dpe_min,
         occupation_status=EXCLUDED.occupation_status,
         occupation_ids=EXCLUDED.occupation_ids, secteurs=EXCLUDED.secteurs,
         apport=EXCLUDED.apport, condition_pret=EXCLUDED.condition_pret,
         updated_at=NOW()
     `, [
       acq.id, toFloat(g(ACQ_KEYS.budget_min)), toFloat(g(ACQ_KEYS.budget_max)),
-      toFloat(g(ACQ_KEYS.rentabilite_min)), occLabels, occIds, secteurs || null,
+      toFloat(g(ACQ_KEYS.rentabilite_min)), normalizeDpe(g(acqDpeKey)), occLabels, occIds, secteurs || null,
       toFloat(g(ACQ_KEYS.apport)), condPretLabel,
     ]);
   }
