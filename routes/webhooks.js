@@ -36,7 +36,7 @@ function isWebhookDuplicate(event, dealId, timestamp) {
   return false;
 }
 
-router.post('/pipedrive', (req, res) => {
+router.post('/pipedrive', async (req, res) => {
   const token = req.query.token;
   const expected = config.WEBHOOK_SECRET;
   if (!token || typeof token !== 'string' || token.length !== expected.length
