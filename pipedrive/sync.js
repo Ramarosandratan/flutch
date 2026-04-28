@@ -23,6 +23,12 @@ const {
   resolveEnum,
 } = require('./fieldMapping');
 
+function normalizeDpe(value) {
+  if (!value) return null;
+  const dpe = String(value).trim().toUpperCase();
+  return ['A', 'B', 'C', 'D', 'E', 'F', 'G'].includes(dpe) ? dpe : null;
+}
+
 async function syncBiens(apiToken, stageName = 'Commercialisé', userId = null, pipelineName = null) {
   logger.info('🔄 Sync biens...');
 
@@ -43,6 +49,7 @@ async function syncBiens(apiToken, stageName = 'Commercialisé', userId = null, 
     adresse: ADRESSE_FIELD, code_postal: ADRESSE_FIELD + '_postal_code', ville: ADRESSE_FIELD + '_locality',
     prix_fai: 'e47953f94beac00febac89a76afb3860cdb51fef',
     rentabilite_post_rev: 'd90975abce5b5abb909d65bba327ec4936c2da0e',
+    dpe: findKey('DPE') || findKey('Classe DPE') || findKey('Diagnostic de performance energetique'),
     occupation: 'ff88b708d9d16f9729825144ab907171364ef744',
     mandat: 'e00ab03bb0bfdb3118bddfb18d02c02036c8a49d',
     surface: findKey('Surface') || findKey('surface'),
@@ -115,6 +122,7 @@ async function syncBiens(apiToken, stageName = 'Commercialisé', userId = null, 
       const resolvedImputTF = resolveSet(g(KEYS.imputation_taxe_fonciere), IMPUT_TF_LABELS);
       const descriptif = g(KEYS.descriptif) || null;
       const lienDrive = g(KEYS.lien_drive) || null;
+      const bienDpe = normalizeDpe(g(KEYS.dpe));
       const photoCouv = g(KEYS.photo_couverture) || g(KEYS.photo_1) || null;
       const photo2 = g(KEYS.photo_2_real) || g(KEYS.photo_2) || null;
       const photo3 = g(KEYS.photo_3_real) || g(KEYS.photo_3) || null;
@@ -129,9 +137,9 @@ async function syncBiens(apiToken, stageName = 'Commercialisé', userId = null, 
           loyer_post_revision, assujettissement_tva, modalite_augmentation,
           point_vigilance, points_positifs,
           surface_rdc, surface_etage, surface_sous_sol, surface_ponderee,
-          imputation_taxe_fonciere, rentabilite_actuelle, lien_drive,
+          imputation_taxe_fonciere, rentabilite_actuelle, lien_drive, dpe,
           pipedrive_updated_at, pipedrive_created_at, synced_at)
-        VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25,$26,$27,$28,$29,$30,$31,$32,$33,$34,$35,$36,$37,$38,$39,$40,$41,$42,$43,$44,$45,$46,$47,$48,$49,$50,NOW())
+        VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25,$26,$27,$28,$29,$30,$31,$32,$33,$34,$35,$36,$37,$38,$39,$40,$41,$42,$43,$44,$45,$46,$47,$48,$49,$50,$51,NOW())
         ON CONFLICT(pipedrive_deal_id) DO UPDATE SET
           titre=EXCLUDED.titre, adresse=EXCLUDED.adresse, code_postal=EXCLUDED.code_postal,
           ville=EXCLUDED.ville, prix_fai=EXCLUDED.prix_fai, rentabilite=EXCLUDED.rentabilite,
@@ -155,6 +163,7 @@ async function syncBiens(apiToken, stageName = 'Commercialisé', userId = null, 
           imputation_taxe_fonciere=EXCLUDED.imputation_taxe_fonciere,
           rentabilite_actuelle=EXCLUDED.rentabilite_actuelle,
           lien_drive=EXCLUDED.lien_drive,
+          dpe=EXCLUDED.dpe,
           pipedrive_updated_at=EXCLUDED.pipedrive_updated_at,
           pipedrive_created_at=EXCLUDED.pipedrive_created_at,
           synced_at=NOW()
@@ -180,6 +189,7 @@ async function syncBiens(apiToken, stageName = 'Commercialisé', userId = null, 
         toFloat(g(KEYS.surface_sous_sol)), toFloat(g(KEYS.surface_ponderee)),
         resolvedImputTF, toFloat(g(KEYS.rentabilite_actuelle)),
         lienDrive,
+        bienDpe,
         deal.update_time || null, deal.add_time || null,
       ]);
     }
@@ -220,6 +230,11 @@ async function syncAcquereurs(apiToken, pipelineNameOrId, userId = null, stageNa
   logger.info('🔄 Sync acquéreurs...');
   const fieldMap = await getDealFieldsMap(apiToken);
   const findKey = (name) => Object.entries(fieldMap).find(([, v]) => norm(v) === norm(name))?.[0];
+  const acqDpeKey = ACQ_KEYS.dpe_min
+    || findKey('DPE minimum')
+    || findKey('DPE min')
+    || findKey('Classe DPE minimum')
+    || findKey('Classe DPE');
 
   const KEYS = ACQ_KEYS;
 
@@ -309,18 +324,19 @@ async function syncAcquereurs(apiToken, pipelineNameOrId, userId = null, stageNa
 
         await client.query(`
           INSERT INTO acquereur_criteria (acquereur_id, budget_min, budget_max, rentabilite_min,
-            occupation_status, occupation_ids, secteurs, apport, condition_pret, updated_at)
-          VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,NOW())
+            dpe_min, occupation_status, occupation_ids, secteurs, apport, condition_pret, updated_at)
+          VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,NOW())
           ON CONFLICT(acquereur_id) DO UPDATE SET
             budget_min=EXCLUDED.budget_min, budget_max=EXCLUDED.budget_max,
             rentabilite_min=EXCLUDED.rentabilite_min,
+            dpe_min=EXCLUDED.dpe_min,
             occupation_status=EXCLUDED.occupation_status,
             occupation_ids=EXCLUDED.occupation_ids, secteurs=EXCLUDED.secteurs,
             apport=EXCLUDED.apport, condition_pret=EXCLUDED.condition_pret,
             updated_at=NOW()
         `, [
           acq.id, toFloat(g(KEYS.budget_min)), toFloat(g(KEYS.budget_max)),
-          toFloat(g(KEYS.rentabilite_min)), occLabels, occIds, secteurs || null,
+          toFloat(g(KEYS.rentabilite_min)), normalizeDpe(g(acqDpeKey)), occLabels, occIds, secteurs || null,
           toFloat(g(KEYS.apport)), condPretLabel,
         ]);
       }
