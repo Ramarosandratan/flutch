@@ -9,7 +9,8 @@
   "scripts": {
     "start": "node server.js",
     "test": "jest",
-    "worker:webhooks": "node services/webhookQueueWorker.js"
+    "worker:webhooks": "node services/webhookQueueWorker.js",
+    "seed:e2e": "node scripts/seed-global-test-data.js"
   },
   "dependencies": {
     "@replit/connectors-sdk": "^0.4.0",

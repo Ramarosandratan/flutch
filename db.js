@@ -472,6 +472,7 @@ async function matchAcquereurToBiens(acquereurId, hideelegation = true) {
   const critWhere = criteriaConditions.length > 0 ? criteriaConditions.join(' AND ') : '1=1';
   const delegWhere = hideelegation ? 'AND (b.is_delegation = 0 OR b.is_delegation IS NULL)' : '';
 
+  // FIX Défi 2: DPE constraint must always apply, even if todo exists (critical matching criterion)
   const query = `
     SELECT b.*,
            t.id as todo_id,
@@ -479,11 +480,9 @@ async function matchAcquereurToBiens(acquereurId, hideelegation = true) {
     FROM biens b
     LEFT JOIN todos t ON t.bien_id = b.id AND t.acquereur_id = $1
     WHERE b.archived = 0 ${delegWhere}
-      AND (
-        (${critWhere})
-        OR t.id IS NOT NULL
-      )
-    ORDER BY COALESCE(b.pipedrive_updated_at, b.pipedrive_created_at, b.synced_at) DESC
+      AND (${critWhere})
+    ORDER BY COALESCE(t.updated_at, t.created_at) DESC NULLS LAST,
+             COALESCE(b.pipedrive_updated_at, b.pipedrive_created_at, b.synced_at) DESC
   `;
 
   const { rows } = await pool.query(query, criteriaParams);

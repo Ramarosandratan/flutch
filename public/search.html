@@ -517,6 +517,42 @@
     }
     .crit-field input:focus, .crit-field select:focus { border-color: var(--primary); }
     .crit-field input.has-value { border-color: var(--primary); background: var(--primary-lighter); }
+    /* DPE Select styling */
+    #critDpeMin {
+      appearance: none;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8'%3E%3Cpath fill='%23666' d='M0 0l6 8 6-8z'/%3E%3C/svg%3E");
+      background-repeat: no-repeat;
+      background-position: right 10px center;
+      padding-right: 28px;
+    }
+    #critDpeMin option {
+      padding: 8px 12px;
+      background: white;
+      color: var(--text);
+      line-height: 1.5;
+    }
+    #critDpeMin option:checked {
+      background: var(--primary);
+      color: white;
+    }
+    /* Detail modal select styling */
+    #detailDpeMin, #detailDpeMin {
+      appearance: none;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8'%3E%3Cpath fill='%23666' d='M0 0l6 8 6-8z'/%3E%3C/svg%3E");
+      background-repeat: no-repeat;
+      background-position: right 10px center;
+      padding-right: 28px !important;
+    }
+    #detailDpeMin option {
+      padding: 8px 12px;
+      background: white;
+      color: var(--text);
+      line-height: 1.5;
+    }
+    #detailDpeMin option:checked {
+      background: var(--primary);
+      color: white;
+    }
     .occupation-grid { display: flex; gap: 8px; flex-wrap: wrap; }
     .occ-btn {
       padding: 7px 14px; border: 2px solid var(--border); border-radius: 8px;
@@ -1028,6 +1064,19 @@
             <div class="secteurs-tags" id="secteursContainer" onclick="document.getElementById('secteurInput').focus()">
               <input type="text" id="secteurInput" placeholder="75, 92, 00..." onkeydown="handleSecteurKey(event)">
             </div>
+          </div>
+          <div class="crit-field">
+            <label><i class="fas fa-leaf"></i> DPE maximum</label>
+            <select id="critDpeMin" onchange="updateActiveCrit()">
+              <option value="">Tous les DPE</option>
+              <option value="A">A (Excellent)</option>
+              <option value="B">B (Très bon)</option>
+              <option value="C">C (Bon)</option>
+              <option value="D">D (Moyen)</option>
+              <option value="E">E (Mauvais)</option>
+              <option value="F">F (Très mauvais)</option>
+              <option value="G">G (Non noté)</option>
+            </select>
           </div>
         </div>
         <div class="options-row">
@@ -1644,7 +1693,7 @@ async function openEmailEditor(acqId, bienIds) {
   try {
     const r = await fetch('/api/email-preview', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + localStorage.getItem('token') },
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + getAuthToken() },
       body: JSON.stringify({ acquereur_id: acqId, bien_ids: bienIds })
     });
     const d = await r.json();
@@ -1750,7 +1799,7 @@ async function sendCustomEmail() {
       for (const bienId of emailEditorData.bienIds) {
         const r = await fetch('/api/email-send-custom', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + localStorage.getItem('token') },
+          headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + getAuthToken() },
           body: JSON.stringify({
             acquereur_id: emailEditorData.acqId,
             bien_ids: [bienId],
@@ -1771,7 +1820,7 @@ async function sendCustomEmail() {
     } else {
       const r = await fetch('/api/email-send-custom', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + localStorage.getItem('token') },
+        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + getAuthToken() },
         body: JSON.stringify({
           acquereur_id: emailEditorData.acqId,
           bien_ids: emailEditorData.bienIds,
@@ -1909,7 +1958,7 @@ async function openAcqDetail(acqId) {
       '</div>' +
       '<div style="padding-top:16px; border-top:1px solid var(--border);">' +
         '<h3 style="font-size:15px; font-weight:700; color:var(--secondary); display:flex; align-items:center; gap:8px; margin-bottom:14px;"><i class="fas fa-filter" style="color:var(--primary)"></i> Critères de matching</h3>' +
-        '<div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:14px; margin-bottom:16px;">' +
+        '<div style="display:grid; grid-template-columns:1fr 1fr 1fr 1fr; gap:14px; margin-bottom:16px;">' +
           '<div style="background:#fafafa; border:1px solid var(--border); border-radius:10px; padding:14px;">' +
             '<div style="font-size:11px; font-weight:700; color:var(--text-light); text-transform:uppercase; margin-bottom:6px;"><i class="fas fa-euro-sign" style="color:var(--primary);margin-right:4px;"></i>Budget minimum</div>' +
             '<input type="text" id="detailBudgetMin" value="' + (a.budget_min ? formatNum(a.budget_min) : '') + '" placeholder="Ex: 100 000" oninput="formatBudgetInput(this)" style="width:100%;padding:8px 10px;border:1px solid var(--border);border-radius:8px;font-size:14px;background:white;">' +
@@ -1921,6 +1970,19 @@ async function openAcqDetail(acqId) {
           '<div style="background:#fafafa; border:1px solid var(--border); border-radius:10px; padding:14px;">' +
             '<div style="font-size:11px; font-weight:700; color:var(--text-light); text-transform:uppercase; margin-bottom:6px;"><i class="fas fa-percentage" style="color:var(--primary);margin-right:4px;"></i>Rentabilité minimum</div>' +
             '<input type="number" id="detailRentaMin" value="' + (a.rentabilite_min || '') + '" placeholder="Ex: 5.5" step="0.1" style="width:100%;padding:8px 10px;border:1px solid var(--border);border-radius:8px;font-size:14px;background:white;">' +
+          '</div>' +
+          '<div style="background:#fafafa; border:1px solid var(--border); border-radius:10px; padding:14px;">' +
+            '<div style="font-size:11px; font-weight:700; color:var(--text-light); text-transform:uppercase; margin-bottom:6px;"><i class="fas fa-leaf" style="color:var(--primary);margin-right:4px;"></i>DPE maximum</div>' +
+            '<select id="detailDpeMin" style="width:100%;padding:8px 10px;border:1px solid var(--border);border-radius:8px;font-size:14px;background:white;">' +
+              '<option value="">Tous</option>' +
+              '<option value="A" ' + (a.dpe_min === 'A' ? 'selected' : '') + '>A (Excellent)</option>' +
+              '<option value="B" ' + (a.dpe_min === 'B' ? 'selected' : '') + '>B (Très bon)</option>' +
+              '<option value="C" ' + (a.dpe_min === 'C' ? 'selected' : '') + '>C (Bon)</option>' +
+              '<option value="D" ' + (a.dpe_min === 'D' ? 'selected' : '') + '>D (Moyen)</option>' +
+              '<option value="E" ' + (a.dpe_min === 'E' ? 'selected' : '') + '>E (Mauvais)</option>' +
+              '<option value="F" ' + (a.dpe_min === 'F' ? 'selected' : '') + '>F (Très mauvais)</option>' +
+              '<option value="G" ' + (a.dpe_min === 'G' ? 'selected' : '') + '>G (Non noté)</option>' +
+            '</select>' +
           '</div>' +
         '</div>' +
         '<div style="display:grid; grid-template-columns:1fr 1fr; gap:14px; margin-bottom:16px;">' +
@@ -1948,6 +2010,7 @@ function getDetailCriteria() {
   return {
     budget_min: parseBudget(document.getElementById('detailBudgetMin').value),
     budget_max: parseBudget(document.getElementById('detailBudgetMax').value),
+    dpe_min: document.getElementById('detailDpeMin').value || null,
     rentabilite_min: parseFloat(document.getElementById('detailRentaMin').value) || null,
     occupation_status: [...document.querySelectorAll('.detail-occ-chk:checked')].map(c => c.dataset.val),
     secteurs: document.getElementById('detailSecteurs').value.split(',').map(s => s.trim()).filter(Boolean)
@@ -2129,6 +2192,7 @@ function selectAcquereur(id, acq) {
   if (acq.budget_min) document.getElementById('critBudgetMin').value = formatNum(acq.budget_min);
   if (acq.budget_max) document.getElementById('critBudgetMax').value = formatNum(acq.budget_max);
   if (acq.rentabilite_min) document.getElementById('critRenta').value = acq.rentabilite_min;
+  if (acq.dpe_min) document.getElementById('critDpeMin').value = acq.dpe_min;
   document.querySelectorAll('.occ-btn').forEach(btn => btn.classList.toggle('active', occ.includes(btn.dataset.val)));
   renderSecteurTags();
   updateActiveCrit();
@@ -2237,6 +2301,7 @@ function resetCriteria() {
   document.getElementById('critBudgetMin').value = '';
   document.getElementById('critBudgetMax').value = '';
   document.getElementById('critRenta').value = '';
+  document.getElementById('critDpeMin').value = '';
   document.querySelectorAll('.occ-btn').forEach(b => b.classList.remove('active'));
   secteurs = []; renderSecteurTags(); updateActiveCrit();
 }
@@ -2246,6 +2311,7 @@ function getCriteria() {
     budget_min: parseBudget(document.getElementById('critBudgetMin').value),
     budget_max: parseBudget(document.getElementById('critBudgetMax').value),
     rentabilite_min: parseFloat(document.getElementById('critRenta').value) || null,
+    dpe_min: document.getElementById('critDpeMin').value || null,
     occupation_status: [...document.querySelectorAll('.occ-btn.active')].map(b => b.dataset.val),
     secteurs: secteurs
   };
@@ -2358,6 +2424,7 @@ function renderBienCard(bien) {
           (bien.prix_fai ? '<div class="bien-stat-block"><span class="stat-label"><i class="fas fa-euro-sign" style="margin-right:3px;font-size:10px;color:var(--primary);"></i>PRIX FAI</span><span class="stat-value">' + formatPrice(bien.prix_fai) + '</span></div>' : '') +
           (bien.rentabilite ? '<div class="bien-stat-block"><span class="stat-label"><i class="fas fa-percentage" style="margin-right:3px;font-size:10px;color:var(--primary);"></i>RENTABILITÉ</span><span class="stat-value">' + bien.rentabilite + '<span class="stat-unit">%</span></span></div>' : '') +
           (bien.surface ? '<div class="bien-stat-block"><span class="stat-label"><i class="fas fa-ruler-combined" style="margin-right:3px;font-size:10px;color:var(--primary);"></i>SURFACE</span><span class="stat-value">' + bien.surface + '<span class="stat-unit"> m²</span></span></div>' : '') +
+          (bien.dpe ? '<div class="bien-stat-block"><span class="stat-label"><i class="fas fa-leaf" style="margin-right:3px;font-size:10px;color:var(--primary);"></i>DPE</span><span class="stat-value" style="background:#27ae60; color:white; padding:2px 6px; border-radius:4px; font-weight:bold;">' + bien.dpe + '</span></div>' : '') +
         '</div>' +
         '<div class="bien-detail-link" onclick="openBienDetail(' + bien.id + ')"><i class="fas fa-info-circle"></i> Voir tous les détails</div>' +
       '</div>' +
@@ -2530,7 +2597,8 @@ function selectBien(id, bien) {
   document.getElementById('bienCriteriaGrid').innerHTML =
     '<div class="crit-field"><label><i class="fas fa-euro-sign"></i> Prix FAI</label><input type="text" value="' + esc(price) + '" readonly class="has-value"></div>' +
     '<div class="crit-field"><label><i class="fas fa-percent"></i> Rentabilité</label><input type="text" value="' + esc(renta) + '" readonly class="has-value"></div>' +
-    '<div class="crit-field"><label><i class="fas fa-building"></i> Occupation</label><input type="text" value="' + occ + '" readonly class="has-value"></div>' +
+  '<div class="crit-field"><label><i class="fas fa-building"></i> Occupation</label><input type="text" value="' + occ + '" readonly class="has-value"></div>' +
+  '<div class="crit-field"><label><i class="fas fa-leaf"></i> DPE</label><input type="text" value="' + esc(bien.dpe || '—') + '" readonly class="has-value"></div>' +
     '<div class="crit-field"><label><i class="fas fa-map-marker-alt"></i> Code postal</label><input type="text" value="' + esc(bien.code_postal || '—') + '" readonly class="has-value"></div>';
 
   launchBienSearch();
@@ -2669,6 +2737,9 @@ function renderAcqResult3(acq) {
         '<div class="acq-name-text">' + esc(acq.titre || 'Sans titre') + ' <span class="acq-id">(#' + acq.pipedrive_deal_id + ')</span></div>' +
         '<div style="font-size:12px;color:var(--text-light);margin-top:2px">' + esc(acq.contact_name || '') + (acq.contact_email ? ' · ' + esc(acq.contact_email) : '') + (acq.owner_name ? ' · Agent: ' + esc(acq.owner_name) : '') + '</div>' +
         '<div style="font-size:11px;color:var(--text-light);margin-top:2px">' + esc(details) + '</div>' +
+        '<div style="font-size:12px;margin-top:6px">' +
+          '<span style="display:inline-block;background:var(--primary-lighter);color:var(--primary-dark);font-weight:700;padding:4px 8px;border-radius:12px;font-size:12px;">DPE: ' + (acq.dpe_min || '—') + '</span>' +
+        '</div>' +
       '</div>' +
       '<div class="bien-row-actions">' +
         (statut !== 'envoye' ?
@@ -3868,7 +3939,7 @@ async function sendBugReport() {
   try {
     const r = await fetch('/api/bug-report', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + localStorage.getItem('token') },
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + getAuthToken() },
       body: JSON.stringify({ note, screenshot: screenshotData })
     });
     const d = await r.json();

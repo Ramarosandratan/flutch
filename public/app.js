@@ -388,7 +388,7 @@ async function openEmailEditor(acqId, bienIds) {
   try {
     const r = await fetch('/api/email-preview', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + localStorage.getItem('token') },
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + getAuthToken() },
       body: JSON.stringify({ acquereur_id: acqId, bien_ids: bienIds })
     });
     const d = await r.json();
@@ -494,7 +494,7 @@ async function sendCustomEmail() {
       for (const bienId of emailEditorData.bienIds) {
         const r = await fetch('/api/email-send-custom', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + localStorage.getItem('token') },
+          headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + getAuthToken() },
           body: JSON.stringify({
             acquereur_id: emailEditorData.acqId,
             bien_ids: [bienId],
@@ -515,7 +515,7 @@ async function sendCustomEmail() {
     } else {
       const r = await fetch('/api/email-send-custom', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + localStorage.getItem('token') },
+        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + getAuthToken() },
         body: JSON.stringify({
           acquereur_id: emailEditorData.acqId,
           bien_ids: emailEditorData.bienIds,
