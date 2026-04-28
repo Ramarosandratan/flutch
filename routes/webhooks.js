@@ -61,50 +61,18 @@ router.post('/pipedrive', (req, res) => {
     return res.status(200).json({ ok: true });
   }
 
-  // FIX Audit 3.6 — Vérification d'idempotence
+  // Persist webhook to durable queue and return immediately
   const dealId = current.id;
-  const updateTime = current.update_time || '';
-  if (isWebhookDuplicate(event, dealId, updateTime)) {
-    logger.info(`📨 Webhook: ${event} deal #${dealId} ignoré (doublon détecté)`);
-    return res.status(200).json({ ok: true, deduplicated: true });
+  try {
+    const { enqueueWebhook } = require('../services/webhookQueue');
+    const inserted = await enqueueWebhook(event, dealId, current);
+    logger.info(`📨 Webhook queued: ${event} deal #${dealId} queued=${inserted}`);
+    return res.status(202).json({ ok: true, queued: inserted });
+  } catch (e) {
+    logger.error('❌ Webhook enqueue error: ' + e.message);
+    // Best-effort: still return 202 to avoid Pipedrive retries flooding; the error is logged for ops.
+    return res.status(202).json({ ok: true, queued: false });
   }
-
-  res.status(200).json({ ok: true });
-
-  (async () => {
-    try {
-      const stageId = current.stage_id;
-      const status = current.status;
-
-      logger.info(`📨 Webhook: ${event} deal #${dealId} stage=${stageId} status=${status}`);
-
-      if (event === 'deleted.deal' || status === 'deleted' || status === 'lost') {
-        await archiveDeal(dealId);
-        return;
-      }
-
-      const { bienStageId, acqStageId } = getCachedStageIds();
-      const isBienStage = stageId === bienStageId;
-      const isAcqStage = stageId === acqStageId;
-
-      if (isBienStage && status === 'open') {
-        await archiveDeal(dealId);
-        await syncSingleBien(current, config.PIPEDRIVE_API_TOKEN);
-      } else if (isAcqStage && status === 'open') {
-        await archiveDeal(dealId);
-        await syncSingleAcquereur(current);
-      } else {
-        const { rows: existingBien } = await pool.query('SELECT id FROM biens WHERE pipedrive_deal_id = $1 AND archived = 0', [dealId]);
-        const { rows: existingAcq } = await pool.query('SELECT id FROM acquereurs WHERE pipedrive_deal_id = $1 AND archived = 0', [dealId]);
-        if (existingBien.length || existingAcq.length) {
-          await archiveDeal(dealId);
-          logger.info(`📨 Webhook: deal #${dealId} a quitté les étapes cibles → archivé`);
-        }
-      }
-    } catch (e) {
-      logger.error('❌ Webhook error: ' + e.message);
-    }
-  })();
 });
 
 router.get('/status', requireAuth, requireAdminAsync, asyncHandler(async (req, res) => {
