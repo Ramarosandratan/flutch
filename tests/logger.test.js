@@ -35,9 +35,13 @@ describe('logger file output redacts top-level secrets', () => {
     const marker = 'PROBE_' + Date.now();
     logger.info(marker, { token: 'SECRET_TOKEN_XYZ', apiKey: 'KEY_ABC' });
     await new Promise((r) => setTimeout(r, 200));
-    const today = new Date().toISOString().slice(0, 10);
-    const file = path.join(__dirname, '..', 'logs', `app-${today}.log`);
-    const content = fs.readFileSync(file, 'utf8');
+    const logsDir = path.join(__dirname, '..', 'logs');
+    const candidates = fs.readdirSync(logsDir)
+      .filter((name) => /^app-\d{4}-\d{2}-\d{2}\.log$/.test(name))
+      .map((name) => path.join(logsDir, name))
+      .sort((a, b) => fs.statSync(b).mtimeMs - fs.statSync(a).mtimeMs);
+    expect(candidates.length).toBeGreaterThan(0);
+    const content = fs.readFileSync(candidates[0], 'utf8');
     const line = content.split('\n').find((l) => l.includes(marker));
     expect(line).toBeDefined();
     expect(line).not.toContain('SECRET_TOKEN_XYZ');

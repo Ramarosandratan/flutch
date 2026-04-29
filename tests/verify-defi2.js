@@ -1,5 +1,5 @@
 require('dotenv').config();
-const { pool } = require('./db');
+const { pool } = require('../db');
 
 (async () => {
   try {
@@ -50,7 +50,7 @@ const { pool } = require('./db');
 
     // 3. Check matching logic
     console.log('\n3️⃣  Vérification du matching DPE...');
-    const { matchAcquereurToBiens } = require('./db');
+    const { matchAcquereurToBiens } = require('../db');
     
     // Get first active seed acquéreur
     const acqToMatch = seedAcq.rows[0];
