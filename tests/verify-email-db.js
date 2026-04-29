@@ -1,6 +1,6 @@
 // Verify the email send created todos and queue entries even if Brevo fails
 require('dotenv').config();
-const { pool } = require('./db');
+const { pool } = require('../db');
 
 (async () => {
   try {

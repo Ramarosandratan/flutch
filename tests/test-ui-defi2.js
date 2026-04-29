@@ -1,6 +1,6 @@
 require('dotenv').config();
 const fetch = require('node-fetch');
-const { pool } = require('./db');
+const { pool } = require('../db');
 
 (async () => {
   try {
