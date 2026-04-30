@@ -11,7 +11,8 @@
     "test": "jest",
     "worker:webhooks": "node services/webhookQueueWorker.js",
     "worker:agent": "node services/agent-worker.js",
-    "seed:e2e": "node scripts/seed-global-test-data.js"
+    "seed:e2e": "node scripts/seed-global-test-data.js",
+    "seed:pipedrive": "node scripts/seed-pipedrive-test-data.js"
   },
   "dependencies": {
     "@replit/connectors-sdk": "^0.4.0",

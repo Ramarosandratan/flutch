@@ -84,18 +84,20 @@ async function cleanupPreviousSeed(client) {
     'SELECT id FROM acquereurs WHERE titre LIKE $1',
     [`${SEED_PREFIX}%`]
   );
+  const acqIds = seedAcqRows.map(r => r.id);
   if (seedAcqRows.length > 0) {
-    const ids = seedAcqRows.map(r => r.id);
-    await client.query('DELETE FROM acquereurs WHERE id = ANY($1::int[])', [ids]);
+    await client.query('DELETE FROM email_queue WHERE acquereur_id = ANY($1::int[])', [acqIds]);
+    await client.query('DELETE FROM acquereurs WHERE id = ANY($1::int[])', [acqIds]);
   }
 
   const { rows: seedBienRows } = await client.query(
     'SELECT id FROM biens WHERE titre LIKE $1',
     [`${SEED_PREFIX}%`]
   );
+  const bienIds = seedBienRows.map(r => r.id);
   if (seedBienRows.length > 0) {
-    const ids = seedBienRows.map(r => r.id);
-    await client.query('DELETE FROM biens WHERE id = ANY($1::int[])', [ids]);
+    await client.query('DELETE FROM email_queue WHERE bien_id = ANY($1::int[])', [bienIds]);
+    await client.query('DELETE FROM biens WHERE id = ANY($1::int[])', [bienIds]);
   }
 }
 

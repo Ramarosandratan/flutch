@@ -156,6 +156,14 @@ npm run worker:agent
 npm run seed:e2e
 ```
 
+- Charger des données de test dans Pipedrive :
+
+```bash
+npm run seed:pipedrive
+```
+
+- Pour un scénario complet, lancez d'abord `seed:pipedrive`, puis le sync local ou `seed:e2e` selon le périmètre voulu.
+
 - Lancer la suite de tests :
 
 ```bash

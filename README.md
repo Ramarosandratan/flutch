@@ -89,6 +89,8 @@ npm start         # node server.js
 npm test          # exécute la suite Jest
 ```
 
+Pour générer un jeu de données de test dans Pipedrive, lancez ensuite `npm run seed:pipedrive`.
+
 ## Sécurité
 
 - Authentification par session signée + jeton Bearer (table `auth_tokens`).
